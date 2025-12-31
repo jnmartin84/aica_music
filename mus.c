@@ -801,7 +801,7 @@ mix:
         pdata[ix].loopend = 0;
         pdata[ix].vol = audVoice[ix].ltvol * 2 / 3;
         pdata[ix].pan = audVoice[ix].pan * 2;
-        pdata[ix].freq = 11025.0f * audVoice[ix].step;
+        pdata[ix].freq = 11025.0f * step;
         snd_sfx_update_ex(&pdata[ix]);
         //}
     }
