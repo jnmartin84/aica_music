@@ -581,7 +581,7 @@ void MUS_UPDATE(void)
                             voice_in_use[voice] = 0;
                             // voice releasing
                             audVoice[voice].flags |= 0x02;
-                            printf("release note %d on channel %d voice %d\n", note, channel, voice);
+                            //printf("release note %d on channel %d voice %d\n", note, channel, voice);
                         }
                         break;
                     }
@@ -612,11 +612,11 @@ void MUS_UPDATE(void)
                             mus_channel[channel].map[(ULONG)note] = voice + 1;
                             if (volume >= 0)
                             {
-                                printf("channel %d voice %d volume %f\n", channel, voice, volume);
-                                audVoice[voice].ltvol = mus_channel[channel].vol = volume;
-                                audVoice[voice].pan = mus_channel[channel].pan + 127;
+                                //printf("channel %d voice %d volume %f\n", channel, voice, volume);
+                                mus_channel[channel].vol = volume;
                             }
-
+audVoice[voice].ltvol = mus_channel[channel].vol;
+audVoice[voice].pan = mus_channel[channel].pan + 127;
                             if (channel != 15)
                             {
                                 inst = mus_channel[channel].instrument;
@@ -642,7 +642,7 @@ void MUS_UPDATE(void)
                             }
 
                             audVoice[voice].start_new = 1;
-                            printf("start note %d on channel %d voice %d handle %08x\n", note, channel, voice, audVoice[voice].wave);
+                            //printf("start note %d on channel %d voice %d handle %08x\n", note, channel, voice, audVoice[voice].wave);
 
                         }
                         break;
@@ -681,7 +681,7 @@ void MUS_UPDATE(void)
                         {
                             // set channel volume
                             mus_channel[channel].vol = volume = (float)value;
-                            printf("channel %d volume %f\n", channel, volume);
+                            //printf("channel %d volume %f\n", channel, volume);
 
                             break;
                         }
@@ -689,7 +689,7 @@ void MUS_UPDATE(void)
                         {
                             // set channel pan
                             mus_channel[channel].pan = pan = value;
-                            printf("channel %d pan %d\n", channel, pan);
+                            //printf("channel %d pan %d\n", channel, pan);
                             break;
                         }
                         }
@@ -771,14 +771,14 @@ mix:
             if (audVoice[ix].flags & 0x02)
             {
                 // releasing
-                ltvol *= 0.875f;
+                ltvol *= 0.9f;
                 audVoice[ix].ltvol = ltvol;
 
                 if (ltvol <= 0.02f)
                 {
                     // disable voice
                     audVoice[ix].flags = 0;
-                    printf("voice %d is stopped\n", ix);
+                    //printf("voice %d is stopped\n", ix);
                     pdata[ix].vol = 0;
                     snd_sfx_update_ex(&pdata[ix]);
                     snd_sfx_stop(pdata[ix].chn);
