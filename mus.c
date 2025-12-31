@@ -193,7 +193,7 @@ void reset_midiVoices(void)
         midiVoice[i].step = 1.0f;
         midiVoice[i].loop = 0;
         midiVoice[i].length = 2000 << 16;
-        midiVoice[i].ltvol = 0.0f;
+        midiVoice[i].ltvol = 0;
         // midiVoice[i].rtvol = 0.0f;
         midiVoice[i].base = 60;
         midiVoice[i].flags = 0x00;
@@ -230,7 +230,7 @@ void I_InitMusic(void)
         midiVoice[i].step = 1.0f;
         midiVoice[i].loop = 0;
         midiVoice[i].length = 2000 << 16;
-        midiVoice[i].ltvol = 0.0f;
+        midiVoice[i].ltvol = 0;
         //		midiVoice[i].rtvol = 0.0f;
         midiVoice[i].base = 60;
         midiVoice[i].flags = 0x00;
@@ -298,6 +298,7 @@ void Mus_Stop(int handle)
     // disable instruments in score (just disable them all)
     for (ix = 0; ix < MUS_VOICES; ix++)
     {
+        audVoice[ix].ltvol = 0.02f; // disable voice
         audVoice[ix].flags = 0x00; // disable voice
         audVoice[ix].start_new = audVoice[ix].stop_new = 0;
     }
@@ -363,7 +364,7 @@ int Mus_Register(char *filename)
     memset(instrument_map, 0, sizeof(int) * 16);
     memset(handles, 0, sizeof(sfxhnd_t) * 16);
     memset(pdata, 0, sizeof(sfx_play_data_t) * 16);
-    for (i = 0; i < 32; i++)
+    for (i = 0; i < 16; i++)
     {
         pdata[i].chn = snd_sfx_chn_alloc();
     }
@@ -488,7 +489,7 @@ int Mus_Register(char *filename)
                 midiVoice[i].step = 1.0f;
                 midiVoice[i].loop = LSWAP(mhdr->loop);
                 midiVoice[i].length = LSWAP(mhdr->length);
-                midiVoice[i].ltvol = 0.0f;
+                midiVoice[i].ltvol = 0;
                 midiVoice[i].base = WSWAP(mhdr->base);
                 midiVoice[i].flags = 0x00;
                 midiVoice[i].pan = 127;
@@ -522,15 +523,8 @@ int get_mapped_index(int instrnum)
 
 void MUS_UPDATE(void)
 {
-    float index;
     float step;
     float ltvol;
-    float rtvol;
-    float sample;
-    int ix;
-    int iy;
-    ULONG loop;
-    ULONG length;
 
     // process music if playing
     if (mus_playing)
@@ -563,7 +557,7 @@ void MUS_UPDATE(void)
                 int voice;
                 int inst;
                 float volume;
-                float pan;
+                int pan;
 
             nextEvent: // next event
                 do
@@ -587,6 +581,7 @@ void MUS_UPDATE(void)
                             voice_in_use[voice] = 0;
                             // voice releasing
                             audVoice[voice].flags |= 0x02;
+                            printf("release note %d on channel %d voice %d\n", note, channel, voice);
                         }
                         break;
                     }
@@ -600,9 +595,9 @@ void MUS_UPDATE(void)
                         {
                             // set volume as well
                             note &= 0x7f;
-                            volume = (float)*score_ptr++;
+                            volume = (float)(*score_ptr++);
                         }
-                        for (voice = 0; voice < MUS_VOICES; voice++)
+                        for (voice = MUS_VOICES - 1; voice >= 0; voice--)
                         {
                             if (!voice_in_use[voice])
                             {
@@ -615,24 +610,21 @@ void MUS_UPDATE(void)
                             // in use
                             voice_in_use[voice] = 1;
                             mus_channel[channel].map[(ULONG)note] = voice + 1;
-                            audVoice[voice].start_new = 1;
-                            if (volume >= 0.0f)
+                            if (volume >= 0)
                             {
-                                mus_channel[channel].vol = volume;
-                                pan = mus_channel[channel].pan;
-                                audVoice[voice].ltvol = volume;
-                                audVoice[voice].pan = pan + 127;
+                                printf("channel %d voice %d volume %f\n", channel, voice, volume);
+                                audVoice[voice].ltvol = mus_channel[channel].vol = volume;
+                                audVoice[voice].pan = mus_channel[channel].pan + 127;
                             }
+
                             if (channel != 15)
                             {
                                 inst = mus_channel[channel].instrument;
                                 // back link for pitch wheel
                                 audVoice[voice].chan = channel;
                                 audVoice[voice].wave = midiVoice[inst].wave;
-                                audVoice[voice].index = 0.0f;
-                                audVoice[voice].step = (float)note_table[(72 - midiVoice[inst].base + (ULONG)note) & 0x7f] / 65536.0f;
+                                audVoice[voice].step = (float)note_table[(72 - midiVoice[inst].base + (ULONG)note) & 0x7f] * 0.00001526f;
                                 audVoice[voice].loop = midiVoice[inst].loop >> 16;
-                                audVoice[voice].length = midiVoice[inst].length >> 16;
                                 // enable voice
                                 audVoice[voice].flags = 0x01;
                             }
@@ -643,13 +635,15 @@ void MUS_UPDATE(void)
                                 // back link for pitch wheel
                                 audVoice[voice].chan = channel;
                                 audVoice[voice].wave = midiVoice[inst].wave;
-                                audVoice[voice].index = 0.0f;
                                 audVoice[voice].step = 1.0f;
                                 audVoice[voice].loop = midiVoice[inst].loop >> 16;
-                                audVoice[voice].length = midiVoice[inst].length >> 16;
                                 // enable voice
                                 audVoice[voice].flags = 0x01;
                             }
+
+                            audVoice[voice].start_new = 1;
+                            printf("start note %d on channel %d voice %d handle %08x\n", note, channel, voice, audVoice[voice].wave);
+
                         }
                         break;
                     }
@@ -687,12 +681,15 @@ void MUS_UPDATE(void)
                         {
                             // set channel volume
                             mus_channel[channel].vol = volume = (float)value;
+                            printf("channel %d volume %f\n", channel, volume);
+
                             break;
                         }
                         case 4:
                         {
                             // set channel pan
-                            mus_channel[channel].pan = pan = (float)value;
+                            mus_channel[channel].pan = pan = value;
+                            printf("channel %d pan %d\n", channel, pan);
                             break;
                         }
                         }
@@ -748,7 +745,7 @@ void MUS_UPDATE(void)
     } // endif musplaying
 mix:
     // mix enabled voices
-    for (ix = 0; ix < MUS_VOICES; ix++)
+    for (int ix = 0; ix < MUS_VOICES; ix++)
     {
         if (audVoice[ix].start_new == 1)
         {
@@ -756,8 +753,9 @@ mix:
             pdata[ix].loop = audVoice[ix].loop != 0;
             pdata[ix].loopstart = pdata[ix].loop ? audVoice[ix].loop : 0;
             pdata[ix].loopend = 0;
-            pdata[ix].vol = audVoice[ix].ltvol / 2;
-            pdata[ix].pan = audVoice[ix].pan * 2;
+            pdata[ix].vol = (int)(audVoice[ix].ltvol) << 1;
+            if (pdata[ix].vol > 255) pdata[ix].vol = 255;
+            pdata[ix].pan = audVoice[ix].pan << 1;
             pdata[ix].freq = 11025.0f * audVoice[ix].step;
 
             snd_sfx_play_ex(&pdata[ix]);
@@ -773,32 +771,26 @@ mix:
             if (audVoice[ix].flags & 0x02)
             {
                 // releasing
-                ltvol *= 0.95f;
+                ltvol *= 0.875f;
                 audVoice[ix].ltvol = ltvol;
 
                 if (ltvol <= 0.02f)
                 {
                     // disable voice
                     audVoice[ix].flags = 0;
-
-                    pdata[ix].idx = audVoice[ix].wave;
+                    printf("voice %d is stopped\n", ix);
                     pdata[ix].vol = 0;
-                    pdata[ix].pan = 127;
                     snd_sfx_update_ex(&pdata[ix]);
-
+                    snd_sfx_stop(pdata[ix].chn);
                     // next voice
                     continue;
                 }
             }
 
             step *= mus_channel[audVoice[ix].chan & 15].pitch;
-
-            pdata[ix].idx = audVoice[ix].wave;
-            pdata[ix].loop = audVoice[ix].loop != 0;
-            pdata[ix].loopstart = pdata[ix].loop ? audVoice[ix].loop : 0;
-            pdata[ix].loopend = 0;
-            pdata[ix].vol = audVoice[ix].ltvol / 2;
-            pdata[ix].pan = audVoice[ix].pan * 2;
+            pdata[ix].vol = (int)(audVoice[ix].ltvol) << 1;
+            if (pdata[ix].vol > 255) pdata[ix].vol = 255;
+            pdata[ix].pan = audVoice[ix].pan << 1;
             pdata[ix].freq = 11025.0f * step;
             snd_sfx_update_ex(&pdata[ix]);
         }
