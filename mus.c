@@ -177,25 +177,6 @@ int __attribute__((aligned(8))) used_instruments[256];
 
 int used_instrument_count = -1;
 
-// Swap 16bit, that is, MSB and LSB byte.
-unsigned short SWAPSHORT(unsigned short x)
-{
-    return x;
-    // No masking with 0xFF should be necessary.
-    //    return (x>>8) | (x<<8);
-}
-
-// Swapping 32bit.
-unsigned long SWAPLONG(unsigned long x)
-{
-    //   return
-    //     (x>>24)
-    //   | ((x>>8) & 0xff00)
-    // | ((x<<8) & 0xff0000)
-    //| (x<<24);
-    return x;
-}
-
 void reset_midiVoices(void)
 {
     int i;
@@ -410,24 +391,24 @@ int Mus_Register(char *filename)
     reset_midiVoices();
     // music won't start playing until mus_playing set at this point
 
-    if (lptr[0] != SWAPLONG(0x1a53554d)) // 0x4d55531a
+    if (lptr[0] != 0x1a53554d) // 0x4d55531a
     {
         return 0; // "MUS",26 always starts a vaild MUS file
     }
 
-    score_len = SWAPSHORT(wptr[2]); // score length
+    score_len = wptr[2]; // score length
     if (!score_len)
     {
         return 0; // illegal score length
     }
 
-    score_start = SWAPSHORT(wptr[3]); // score start
+    score_start = wptr[3]; // score start
     if (score_start < 18)
     {
         return 0; // illegal score start offset
     }
 
-    inst_cnt = SWAPSHORT(wptr[6]); // instrument count
+    inst_cnt = wptr[6]; // instrument count
     if (!inst_cnt)
     {
         return 0; // illegal instrument count
@@ -449,7 +430,7 @@ int Mus_Register(char *filename)
     used_instrument_count = inst_cnt;
     for (i = 0; i < inst_cnt; i++)
     {
-        used_instruments[i] = SWAPSHORT(musheader->instruments[i]);
+        used_instruments[i] = musheader->instruments[i];
     }
 
     miptr = (ULONG *)midi_pointers;
@@ -775,7 +756,7 @@ mix:
             pdata[ix].loop = audVoice[ix].loop != 0;
             pdata[ix].loopstart = pdata[ix].loop ? audVoice[ix].loop : 0;
             pdata[ix].loopend = 0;
-            pdata[ix].vol = audVoice[ix].ltvol * 128;
+            pdata[ix].vol = audVoice[ix].ltvol * 2 / 3;// * 128;
             pdata[ix].pan = audVoice[ix].pan * 2;
             pdata[ix].freq = 11025.0f * audVoice[ix].step;
 
@@ -818,7 +799,7 @@ mix:
         pdata[ix].loop = audVoice[ix].loop != 0;
         pdata[ix].loopstart = pdata[ix].loop ? audVoice[ix].loop : 0;
         pdata[ix].loopend = 0;
-        pdata[ix].vol = audVoice[ix].ltvol * 128;
+        pdata[ix].vol = audVoice[ix].ltvol * 2 / 3;
         pdata[ix].pan = audVoice[ix].pan * 2;
         pdata[ix].freq = 11025.0f * audVoice[ix].step;
         snd_sfx_update_ex(&pdata[ix]);
