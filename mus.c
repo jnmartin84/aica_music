@@ -618,10 +618,10 @@ void MUS_UPDATE(void)
                             audVoice[voice].start_new = 1;
                             if (volume >= 0.0f)
                             {
-                            mus_channel[channel].vol = volume;
-                            pan = mus_channel[channel].pan;
-                            audVoice[voice].ltvol = volume;
-                            audVoice[voice].pan = pan + 127;
+                                mus_channel[channel].vol = volume;
+                                pan = mus_channel[channel].pan;
+                                audVoice[voice].ltvol = volume;
+                                audVoice[voice].pan = pan + 127;
                             }
                             if (channel != 15)
                             {
@@ -756,7 +756,7 @@ mix:
             pdata[ix].loop = audVoice[ix].loop != 0;
             pdata[ix].loopstart = pdata[ix].loop ? audVoice[ix].loop : 0;
             pdata[ix].loopend = 0;
-            pdata[ix].vol = audVoice[ix].ltvol * 2 / 3;// * 128;
+            pdata[ix].vol = audVoice[ix].ltvol / 2;
             pdata[ix].pan = audVoice[ix].pan * 2;
             pdata[ix].freq = 11025.0f * audVoice[ix].step;
 
@@ -764,46 +764,43 @@ mix:
             audVoice[ix].start_new = 0;
         }
 
-#if 1
         if (audVoice[ix].flags & 0x01)
         {
             step = audVoice[ix].step;
             ltvol = audVoice[ix].ltvol;
 
-                // special handling for instrument
-                if (audVoice[ix].flags & 0x02)
+            // special handling for instrument
+            if (audVoice[ix].flags & 0x02)
+            {
+                // releasing
+                ltvol *= 0.95f;
+                audVoice[ix].ltvol = ltvol;
+
+                if (ltvol <= 0.02f)
                 {
-                    // releasing
-                    ltvol *= 0.90f;
-                    audVoice[ix].ltvol = ltvol;
+                    // disable voice
+                    audVoice[ix].flags = 0;
 
-                    if (ltvol <= 0.02f)
-                    {
-                        // disable voice
-                        audVoice[ix].flags = 0;
+                    pdata[ix].idx = audVoice[ix].wave;
+                    pdata[ix].vol = 0;
+                    pdata[ix].pan = 127;
+                    snd_sfx_update_ex(&pdata[ix]);
 
-                        pdata[ix].idx = audVoice[ix].wave;
-                        pdata[ix].vol = 0;
-                        pdata[ix].pan = 127;
-                        pdata[ix].freq = 11025.0f * audVoice[ix].step;
-                        snd_sfx_update_ex(&pdata[ix]);
-                        // next voice
-                        continue;
-                    }
+                    // next voice
+                    continue;
                 }
+            }
 
-                step *= mus_channel[audVoice[ix].chan & 15].pitch;
-        
-#endif
-        pdata[ix].idx = audVoice[ix].wave;
-        pdata[ix].loop = audVoice[ix].loop != 0;
-        pdata[ix].loopstart = pdata[ix].loop ? audVoice[ix].loop : 0;
-        pdata[ix].loopend = 0;
-        pdata[ix].vol = audVoice[ix].ltvol * 2 / 3;
-        pdata[ix].pan = audVoice[ix].pan * 2;
-        pdata[ix].freq = 11025.0f * step;
-        snd_sfx_update_ex(&pdata[ix]);
-        //}
+            step *= mus_channel[audVoice[ix].chan & 15].pitch;
+
+            pdata[ix].idx = audVoice[ix].wave;
+            pdata[ix].loop = audVoice[ix].loop != 0;
+            pdata[ix].loopstart = pdata[ix].loop ? audVoice[ix].loop : 0;
+            pdata[ix].loopend = 0;
+            pdata[ix].vol = audVoice[ix].ltvol / 2;
+            pdata[ix].pan = audVoice[ix].pan * 2;
+            pdata[ix].freq = 11025.0f * step;
+            snd_sfx_update_ex(&pdata[ix]);
+        }
     }
-}
 }
